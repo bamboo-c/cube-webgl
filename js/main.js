@@ -1,217 +1,273 @@
-// canvas の取得
-// canvasエレメントを取得
-var el_canvas = document.getElementById('canvas');
-// webglコンテキストを取得
-var gl = el_canvas.getContext('webgl') || el_canvas.getContext('experimental-webgl');
+var Main = {
 
+	canvas : null,
+	gl : null,
 
-var Polygon = function() {
+	webGl : null,
 
-	this._init.apply(this);
+	init : function() {
 
-}
+		// canvas を取得
+		var canvas = document.getElementById( "canvas" );
+		canvas.width = 500;
+		canvas.height = 300;
 
-Polygon.prototype = {
+		Main.webGl = new WebGL( canvas );
 
+		// vertex shaderの作成
+		var vScript = document.getElementById( "vs" );
+
+		// fragment shaderの作成
+		var fScript = document.getElementById( "fs" );
+
+		// プログラムオブジェクトの作成
+		Main.webGl.createProgramObject( vScript.text, fScript.text );
+
+		// ポリゴン作成
+		var point1 = new Point3d( 0.0, 1.0, 0.0 );
+		var point2 = new Point3d( 1.0, 0.0, 0.0 );
+		var point3 = new Point3d( -1.0, 0.0, 0.0 );
+		var polygon = new Polygon( point1, point2, point3 );
+
+		// ポリゴンを追加
+		Main.webGl.add( polygon );
+
+		// ポリゴンの描画
+		Main.webGl.update();
+
+	}
+};
+
+//---------------------------------------------------
+//	▼ WebGL ▼
+//---------------------------------------------------
+var WebGL = function( i_canvas ) {
+
+	this.gl;
+	this.canvas = i_canvas;
+	this.program;
+	this.vShader;
+	this.fShader;
+
+	this._polygons = [];
+
+	this._init.apply( this );
+
+};
+
+WebGL.prototype = {
+
+	//------------------------------------------------
+	//	init
+	//------------------------------------------------
 	_init : function() {
-		// $.proxy(this.vbo);
-		// $.proxy(this.matrix);
-		// $.proxy(this.drew);
-		// $.proxy(this.createShader);
-		// $.proxy(this.createProgram);
-		// $.proxy(this.createVbo);
-		this.canvas();
-		this.shader();
-	},
-	// canvas の設定
-	canvas : function() {
 
-		el_canvas.width = 300;
-		el_canvas.height = 300;
+	// webgl コンテキストを取得
+	this.gl = this.canvas.getContext( "webgl" );
 
-		// canvasを初期化する色を設定する
-		gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	// canvas を初期化する色を設定する
+	this.gl.clearColor( 0.0, 0.0, 0.0, 1.0 );
 
-		// canvasを初期化する際の深度を設定する
-		gl.clearDepth(1.0);
+	// canvasを初期化する際の深度を設定する
+	this.gl.clearDepth( 1.0 );
 
-		// canvasを初期化
-		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+	// canvasを初期化
+	this.gl.clear( this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT );
 
 	},
-	shader : function() {
+	add : function( i_polygon ) {
 
-		// 頂点シェーダとフラグメントシェーダの生成
-		var v_shader = createShader('i_vs');
-		var f_shader = createShader('i_fs');
-
-		// プログラムオブジェクトの生成とリンク
-		var prg = createProgram(v_shader, f_shader);
-
-		// attributeLocationの取得
-		var attLocation = gl.getAttribLocation(prg, 'position');
-
-		// attributeの要素数(この場合は xyz の3要素)
-		var attStride = 3;
-
-		// モデル(頂点)データ
-		var vertex_position = [
-			 0.0, 1.0, 0.0,
-			 1.0, 0.0, 0.0,
-			-1.0, 0.0, 0.0
-		];
+		this._polygons.push( i_polygon );
 
 	},
+	createShader : function( i_script, i_type ) {
 
-	vbo : function() {
+		// shader を作成
+		var shader = this.gl.createShader( i_type );
 
-		// VBOの生成
-		var vbo = create_vbo(vertex_position);
+		// shader を追加
+		this.gl.shaderSource( shader, i_script );
 
-		// VBOをバインド
-		gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+		// shader をコンパイル
+		this.gl.compileShader( shader );
 
-		// attribute属性を有効にする
-		gl.enableVertexAttribArray(attLocation);
+		// shader コンパイル失敗時のエラー
+		if ( !this.gl.getShaderParameter( shader, this.gl.COMPILE_STATUS ) ) {
 
-		// attribute属性を登録
-		gl.vertexAttribPointer(attLocation, attStride, gl.FLOAT, false, 0, 0);
+			console.log( this.gl.getShaderInfoLog( shader ) );
+			return null;
+
+		};
+
+		return shader;
 
 	},
+	createProgramObject : function( i_vShaderScript, i_fShaderScript ) {
 
-	matrix : function() {
+		//vertex shaderの作成
+		this.vShader = this.createShader( i_vShaderScript, this.gl.VERTEX_SHADER );
 
-		// minMatrix.js を用いた行列関連処理
-		// matIVオブジェクトを生成
+		//fragment shaderの作成
+		this.fShader = this.createShader( i_fShaderScript, this.gl.FRAGMENT_SHADER );
+
+		//プログラムオブジェクトの作成
+		this.program = this.gl.createProgram();
+
+		//プログラムオブジェクトにshaderを割り当てる
+		this.gl.attachShader( this.program, this.vShader );
+		this.gl.attachShader( this.program, this.fShader );
+
+		//shaderをリンク
+		this.gl.linkProgram( this.program );
+
+
+		//shaderのリンク成功時
+		if( this.gl.getProgramParameter( this.program, this.gl.LINK_STATUS ) ) {
+
+			//プログラムオブジェクトを有効にする
+			this.gl.useProgram( this.program );
+
+		//shaderのリンク失敗時
+		}else {
+
+			console.log( this.gl.getProgramInfoLog( this.program ) );
+			return null;
+
+		}
+
+		return this.program;
+
+	},
+	update : function() {
+
+		//bufferを作成
+		var vbo = this.gl.createBuffer();
+		//bufferをバインド
+		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, vbo );
+		//bufferにデータをセット
+		this.gl.bufferData( this.gl.ARRAY_BUFFER, new Float32Array( this._polygons[0].get() ), this.gl.STATIC_DRAW );
+		//bufferのバインドを無効化
+		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, null );
+
+		//作成したbufferをattributeに設定
+		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, vbo );
+		//attribute属性の変数positionを取得
+		var position = this.gl.getAttribLocation( this.program, "position" );
+		//positionの要素数
+		var positionStride = 3;
+		//attribute属性を有効にする
+		this.gl.enableVertexAttribArray( position );
+		//attribute属性を登録
+		this.gl.vertexAttribPointer( position, positionStride, this.gl.FLOAT, false, 0, 0 );
+		//bufferのバインドを無効化
+		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, null );
+
 		var m = new matIV();
-
 		// 各種行列の生成と初期化
-		var mMatrix = m.identity(m.create());
-		var vMatrix = m.identity(m.create());
-		var pMatrix = m.identity(m.create());
-		var mvpMatrix = m.identity(m.create());
+		var mMatrix = m.identity( m.create() );
+		var vMatrix = m.identity( m.create() );
+		var pMatrix = m.identity( m.create() );
+		var mvpMatrix = m.identity( m.create() );
 
 		// ビュー座標変換行列
-		m.lookAt([0.0, 1.0, 3.0], [0, 0, 0], [0, 1, 0], vMatrix);
-
+		m.lookAt( [0.0, 1.0, 3.0], [0, 0, 0], [0, 1, 0], vMatrix );
 		// プロジェクション座標変換行列
-		m.perspective(90, c.width / c.height, 0.1, 100, pMatrix);
+		m.perspective( 90, this.canvas.width / this.canvas.height, 0.1, 100, pMatrix );
 
 		// 各行列を掛け合わせ座標変換行列を完成させる
-		m.multiply(pMatrix, vMatrix, mvpMatrix);
-		m.multiply(mvpMatrix, mMatrix, mvpMatrix);
+		m.multiply( pMatrix, vMatrix, mvpMatrix );
+		m.multiply( mvpMatrix, mMatrix, mvpMatrix );
 
-		// uniformLocationの取得
-		var uniLocation = gl.getUniformLocation(prg, 'mvpMatrix');
 
-		// uniformLocationへ座標変換行列を登録
-		gl.uniformMatrix4fv(uniLocation, false, mvpMatrix);
+		//uniformLocationの取得
+		var uniLocation = this.gl.getUniformLocation( this.program, "mvpMatrix" );
 
-	},
+		//uniformLocationへ座標変換行列を登録
+		this.gl.uniformMatrix4fv( uniLocation, false, mvpMatrix );
 
-	drew : function() {
+		//モデルの描画
+		this.gl.drawArrays( this.gl.TRIANGLES, 0, 3 );
 
-		// モデルの描画
-		gl.drawArrays(gl.TRIANGLES, 0, 3);
-
-		// コンテキストの再描画
-		gl.flush();
+		//コンテキストの再描画
+		this.gl.flush();
 
 	}
 }
+//---------------------------------------------------
+//	▲ WebGL ▲
+//---------------------------------------------------
 
-// functions
+//---------------------------------------------------
+//	▼ Point3d ▼
+//---------------------------------------------------
+var Point3d = function( i_x, i_y, i_z ) {
 
-	// シェーダを生成
-	function createShader (i_id) {
+	this.x = i_x || 0.0;
+	this.y = i_y || 0.0;
+	this.z = i_z || 0.0;
 
-		// シェーダを格納する変数
-		var shader;
+	this._init.apply( this );
 
-		// HTMLからscriptタグへの参照を取得
-		var scriptElement = document.getElementById(i_id);
+}
+Point3d.prototype = {
 
-		// scriptタグが存在しない場合は抜ける
-		if(!scriptElement){return;}
+	//------------------------------------------------
+	//	init
+	//------------------------------------------------
+	_init : function() {
 
-		// scriptタグのtype属性をチェック
-		switch(scriptElement.type){
 
-			// 頂点シェーダの場合
-			case 'x-shader/x-vertex':
-				shader = gl.createShader(gl.VERTEX_SHADER);
-				break;
 
-			// フラグメントシェーダの場合
-			case 'x-shader/x-fragment':
-				shader = gl.createShader(gl.FRAGMENT_SHADER);
-				break;
-			default :
-				return;
-		}
-
-		// 生成されたシェーダにソースを割り当てる
-		gl.shaderSource(shader, scriptElement.text);
-
-		// シェーダをコンパイルする
-		gl.compileShader(shader);
-
-		// シェーダが正しくコンパイルされたかチェック
-		if(gl.getShaderParameter(shader, gl.COMPILE_STATUS)){
-
-			// 成功していたらシェーダを返して終了
-			return shader;
-		}else{
-
-			// 失敗していたらエラーログをアラートする
-			alert(gl.getShaderInfoLog(shader));
-		}
 
 	}
+}
+//---------------------------------------------------
+//	▲ Point3d ▲
+//---------------------------------------------------
 
-	// プログラムオブジェクトを生成しシェーダをリンク
-	function createProgram (i_vs, i_fs){
-		// プログラムオブジェクトの生成
-		var program = gl.createProgram();
 
-		// プログラムオブジェクトにシェーダを割り当てる
-		gl.attachShader(program, i_vs);
-		gl.attachShader(program, i_fs);
+//---------------------------------------------------
+//	▼ Polygon ▼
+//---------------------------------------------------
+var Polygon = function( i_point1, i_point2, i_point3 ) {
 
-		// シェーダをリンク
-		gl.linkProgram(program);
+	this.x = 0;
+	this.y = 0;
+	this.z = 0;
+	this.point1 = i_point1 || new Point3d();
+	this.point2 = i_point2 || new Point3d();
+	this.point3 = i_point3 || new Point3d();
 
-		// シェーダのリンクが正しく行なわれたかチェック
-		if(gl.getProgramParameter(program, gl.LINK_STATUS)){
+	this._init.apply( this );
 
-			// 成功していたらプログラムオブジェクトを有効にする
-			gl.useProgram(program);
+}
+Polygon.prototype = {
 
-			// プログラムオブジェクトを返して終了
-			return program;
-		}else{
+	//------------------------------------------------
+	//	init
+	//------------------------------------------------
+	_init : function() {
 
-			// 失敗していたらエラーログをアラートする
-			alert(gl.getProgramInfoLog(program));
-		}
+	},
+
+	//------------------------------------------------
+	//	get
+	//------------------------------------------------
+	get : function() {
+
+		var verteies = [];
+		verteies.push( this.point1.x, this.point1.y, this.point1.z );
+		verteies.push( this.point2.x, this.point2.y, this.point2.z );
+		verteies.push( this.point3.x, this.point3.y, this.point3.z );
+
+		return verteies;
+
+
 	}
+}
+//---------------------------------------------------
+//	▲ Polygon ▲
+//---------------------------------------------------
 
-	// VBOを生成
-	function createVbo (i_data){
-		// バッファオブジェクトの生成
-		var vbo = gl.createBuffer();
 
-		// バッファをバインドする
-		gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
-
-		// バッファにデータをセット
-		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(i_data), gl.STATIC_DRAW);
-
-		// バッファのバインドを無効化
-		gl.bindBuffer(gl.ARRAY_BUFFER, null);
-
-		// 生成した VBO を返して終了
-		return vbo;
-	}
-
-var polygonDrew = new Polygon();
+Main.init();

@@ -1,4 +1,4 @@
 cube-webgl
 ==========
 
-webglのお勉強
+webgl test
