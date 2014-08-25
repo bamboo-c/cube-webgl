@@ -7,36 +7,46 @@ var Main = {
 
 	init : function() {
 
-		// canvas を取得
+		//canvasを取得
 		var canvas = document.getElementById( "canvas" );
 		canvas.width = 500;
 		canvas.height = 300;
 
+
 		Main.webGl = new WebGL( canvas );
 
-		// vertex shaderの作成
+
+		//vertex shaderの作成
 		var vScript = document.getElementById( "vs" );
 
-		// fragment shaderの作成
+		//fragment shaderの作成
 		var fScript = document.getElementById( "fs" );
 
-		// プログラムオブジェクトの作成
+		//プログラムオブジェクトの作成
 		Main.webGl.createProgramObject( vScript.text, fScript.text );
 
-		// ポリゴン作成
+		//ポリゴン作成
 		var point1 = new Point3d( 0.0, 1.0, 0.0 );
 		var point2 = new Point3d( 1.0, 0.0, 0.0 );
 		var point3 = new Point3d( -1.0, 0.0, 0.0 );
 		var polygon = new Polygon( point1, point2, point3 );
 
-		// ポリゴンを追加
-		Main.webGl.add( polygon );
+		//色指定
+		var color1 = new vertexColor( 1.0, 0.0, 0.0, 1.0 );
+		var color2 = new vertexColor( 0.0, 1.0, 0.0, 1.0 );
+		var color3 = new vertexColor( 0.0, 0.0, 1.0, 1.0 );
+		var color  = new Polygon( color1, color2, color3 )
 
-		// ポリゴンの描画
+		//ポリゴンを追加
+		Main.webGl.add( polygon );
+		Main.webGl.add( color );
+
 		Main.webGl.update();
 
 	}
-};
+
+}
+
 
 //---------------------------------------------------
 //	▼ WebGL ▼
@@ -53,8 +63,7 @@ var WebGL = function( i_canvas ) {
 
 	this._init.apply( this );
 
-};
-
+}
 WebGL.prototype = {
 
 	//------------------------------------------------
@@ -62,46 +71,58 @@ WebGL.prototype = {
 	//------------------------------------------------
 	_init : function() {
 
-	// webgl コンテキストを取得
-	this.gl = this.canvas.getContext( "webgl" );
+		//webglコンテキストを取得
+		this.gl = this.canvas.getContext( "webgl" );
 
-	// canvas を初期化する色を設定する
-	this.gl.clearColor( 0.0, 0.0, 0.0, 1.0 );
+		//canvasを初期化する色を設定する
+		this.gl.clearColor( 0.0, 0.0, 0.0, 1.0 );
 
-	// canvasを初期化する際の深度を設定する
-	this.gl.clearDepth( 1.0 );
+		//canvasを初期化する際の深度を設定する
+		this.gl.clearDepth( 1.0 );
 
-	// canvasを初期化
-	this.gl.clear( this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT );
+		//canvasを初期化
+		this.gl.clear( this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT );
 
 	},
+
+	//------------------------------------------------
+	//
+	//------------------------------------------------
 	add : function( i_polygon ) {
 
 		this._polygons.push( i_polygon );
 
 	},
+
+	//------------------------------------------------
+	//	add shader
+	//------------------------------------------------
 	createShader : function( i_script, i_type ) {
 
-		// shader を作成
+		//shaderを作成
 		var shader = this.gl.createShader( i_type );
 
-		// shader を追加
+		//shaderを追加
 		this.gl.shaderSource( shader, i_script );
 
-		// shader をコンパイル
+		//shaderをコンパイル
 		this.gl.compileShader( shader );
 
-		// shader コンパイル失敗時のエラー
-		if ( !this.gl.getShaderParameter( shader, this.gl.COMPILE_STATUS ) ) {
+		//shaderのコンパイル失敗の時
+		if( !this.gl.getShaderParameter( shader, this.gl.COMPILE_STATUS ) ) {
 
 			console.log( this.gl.getShaderInfoLog( shader ) );
 			return null;
 
-		};
+		}
 
 		return shader;
 
 	},
+
+	//------------------------------------------------
+	//	add program object
+	//------------------------------------------------
 	createProgramObject : function( i_vShaderScript, i_fShaderScript ) {
 
 		//vertex shaderの作成
@@ -138,7 +159,12 @@ WebGL.prototype = {
 		return this.program;
 
 	},
+
+	//------------------------------------------------
+	//
+	//------------------------------------------------
 	update : function() {
+
 
 		//bufferを作成
 		var vbo = this.gl.createBuffer();
@@ -149,16 +175,24 @@ WebGL.prototype = {
 		//bufferのバインドを無効化
 		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, null );
 
+		// attributeLocationを配列に取得
+		var attLocation = new Array(2)
+
 		//作成したbufferをattributeに設定
 		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, vbo );
 		//attribute属性の変数positionを取得
-		var position = this.gl.getAttribLocation( this.program, "position" );
-		//positionの要素数
-		var positionStride = 3;
+		attLocation[0] = this.gl.getAttribLocation( this.program, "position" );
+		attLocation[1] = this.gl.getAttribLocation( this.program, "color" );
+
+		//要素数
+		var attStride = new Array(2);
+		attStride[0] = 3;
+		attStride[1] = 4;
+
 		//attribute属性を有効にする
-		this.gl.enableVertexAttribArray( position );
+		this.gl.enableVertexAttribArray( attLocation[0] );
 		//attribute属性を登録
-		this.gl.vertexAttribPointer( position, positionStride, this.gl.FLOAT, false, 0, 0 );
+		this.gl.vertexAttribPointer( attLocation[0], attStride[0], this.gl.FLOAT, false, 0, 0 );
 		//bufferのバインドを無効化
 		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, null );
 
@@ -192,10 +226,13 @@ WebGL.prototype = {
 		this.gl.flush();
 
 	}
+
+
 }
 //---------------------------------------------------
 //	▲ WebGL ▲
 //---------------------------------------------------
+
 
 //---------------------------------------------------
 //	▼ Point3d ▼
@@ -216,27 +253,55 @@ Point3d.prototype = {
 	//------------------------------------------------
 	_init : function() {
 
-
-
-
 	}
 }
 //---------------------------------------------------
 //	▲ Point3d ▲
 //---------------------------------------------------
 
+//---------------------------------------------------
+//	▼ vertexColor ▼
+//---------------------------------------------------
+var vertexColor = function( i_c1, i_c2, i_c3 ) {
+
+	this.c1 = i_c1 || 0.0;
+	this.c2 = i_c2 || 0.0;
+	this.c3 = i_c3 || 0.0;
+
+	this._init.apply( this );
+
+}
+vertexColor.prototype = {
+
+	//------------------------------------------------
+	//	init
+	//------------------------------------------------
+	_init : function() {
+
+	}
+}
+//---------------------------------------------------
+//	▲ vertexColor ▲
+//---------------------------------------------------
+
 
 //---------------------------------------------------
 //	▼ Polygon ▼
 //---------------------------------------------------
-var Polygon = function( i_point1, i_point2, i_point3 ) {
+var Polygon = function( i_point1, i_point2, i_point3, i_color1, i_color2, i_color3 ) {
 
 	this.x = 0;
 	this.y = 0;
 	this.z = 0;
+	this.c1 = 0;
+	this.c2 = 0;
+	this.c3 = 0;
 	this.point1 = i_point1 || new Point3d();
 	this.point2 = i_point2 || new Point3d();
 	this.point3 = i_point3 || new Point3d();
+	this.color1 = i_color1 || new vertexColor();
+	this.color2 = i_color2 || new vertexColor();
+	this.color3 = i_color3 || new vertexColor();
 
 	this._init.apply( this );
 
@@ -261,7 +326,6 @@ Polygon.prototype = {
 		verteies.push( this.point3.x, this.point3.y, this.point3.z );
 
 		return verteies;
-
 
 	}
 }
