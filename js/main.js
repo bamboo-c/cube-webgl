@@ -1,3 +1,18 @@
+Array.prototype.join = function( i_array ) {
+
+	var l = i_array.length;
+	for( var i = 0; i < l; i++ ) {
+
+		this.push( i_array[i] );
+
+	}
+
+}
+
+
+//---------------------------------------------------
+//	▼ Main ▼
+//---------------------------------------------------
 var Main = {
 
 	canvas : null,
@@ -26,26 +41,37 @@ var Main = {
 		Main.webGl.createProgramObject( vScript.text, fScript.text );
 
 		//ポリゴン作成
-		var point1 = new Point3d( 0.0, 1.0, 0.0 );
-		var point2 = new Point3d( 1.0, 0.0, 0.0 );
-		var point3 = new Point3d( -1.0, 0.0, 0.0 );
+		var point1 = new Point3d( 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 1.0 );
+		var point2 = new Point3d( 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0 );
+		var point3 = new Point3d( -1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0 );
 		var polygon = new Polygon( point1, point2, point3 );
-
-		//色指定
-		var color1 = new vertexColor( 1.0, 0.0, 0.0, 1.0 );
-		var color2 = new vertexColor( 0.0, 1.0, 0.0, 1.0 );
-		var color3 = new vertexColor( 0.0, 0.0, 1.0, 1.0 );
-		var color  = new Polygon( color1, color2, color3 )
+		polygon.x = -2.0;
 
 		//ポリゴンを追加
 		Main.webGl.add( polygon );
-		Main.webGl.add( color );
+
+
+		//ポリゴン作成
+		point1 = new Point3d( 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0 );
+		point2 = new Point3d( 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 );
+		point3 = new Point3d( -1.0, 0.0, 0.0, 1.0, 0.0, 0.0, 1.0 );
+		polygon = new Polygon( point1, point2, point3 );
+		polygon.x = 2.0;
+
+		//ポリゴンを追加
+		Main.webGl.add( polygon );
+
 
 		Main.webGl.update();
+
+
 
 	}
 
 }
+//---------------------------------------------------
+//	▲ Main ▲
+//---------------------------------------------------
 
 
 //---------------------------------------------------
@@ -71,6 +97,7 @@ WebGL.prototype = {
 	//------------------------------------------------
 	_init : function() {
 
+
 		//webglコンテキストを取得
 		this.gl = this.canvas.getContext( "webgl" );
 
@@ -82,6 +109,7 @@ WebGL.prototype = {
 
 		//canvasを初期化
 		this.gl.clear( this.gl.COLOR_BUFFER_BIT | this.gl.DEPTH_BUFFER_BIT );
+
 
 	},
 
@@ -166,64 +194,42 @@ WebGL.prototype = {
 	update : function() {
 
 
-		//bufferを作成
-		var vbo = this.gl.createBuffer();
-		//bufferをバインド
-		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, vbo );
-		//bufferにデータをセット
-		this.gl.bufferData( this.gl.ARRAY_BUFFER, new Float32Array( this._polygons[0].get() ), this.gl.STATIC_DRAW );
-		//bufferのバインドを無効化
-		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, null );
-
-		// attributeLocationを配列に取得
-		var attLocation = new Array(2)
-
-		//作成したbufferをattributeに設定
-		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, vbo );
-		//attribute属性の変数positionを取得
-		attLocation[0] = this.gl.getAttribLocation( this.program, "position" );
-		attLocation[1] = this.gl.getAttribLocation( this.program, "color" );
-
-		//要素数
-		var attStride = new Array(2);
-		attStride[0] = 3;
-		attStride[1] = 4;
-
-		//attribute属性を有効にする
-		this.gl.enableVertexAttribArray( attLocation[0] );
-		//attribute属性を登録
-		this.gl.vertexAttribPointer( attLocation[0], attStride[0], this.gl.FLOAT, false, 0, 0 );
-		//bufferのバインドを無効化
-		this.gl.bindBuffer( this.gl.ARRAY_BUFFER, null );
-
 		var m = new matIV();
-		// 各種行列の生成と初期化
-		var mMatrix = m.identity( m.create() );
-		var vMatrix = m.identity( m.create() );
-		var pMatrix = m.identity( m.create() );
-		var mvpMatrix = m.identity( m.create() );
-
-		// ビュー座標変換行列
-		m.lookAt( [0.0, 1.0, 3.0], [0, 0, 0], [0, 1, 0], vMatrix );
-		// プロジェクション座標変換行列
-		m.perspective( 90, this.canvas.width / this.canvas.height, 0.1, 100, pMatrix );
-
-		// 各行列を掛け合わせ座標変換行列を完成させる
-		m.multiply( pMatrix, vMatrix, mvpMatrix );
-		m.multiply( mvpMatrix, mMatrix, mvpMatrix );
 
 
-		//uniformLocationの取得
-		var uniLocation = this.gl.getUniformLocation( this.program, "mvpMatrix" );
 
-		//uniformLocationへ座標変換行列を登録
-		this.gl.uniformMatrix4fv( uniLocation, false, mvpMatrix );
+		//Cameraの計算
+    	var mMatrix = m.identity( m.create() );
+    	var vMatrix = m.identity( m.create() );
+    	var pMatrix = m.identity( m.create() );
+    	var mvpMatrix = m.identity( m.create() );
 
-		//モデルの描画
-		this.gl.drawArrays( this.gl.TRIANGLES, 0, 3 );
 
-		//コンテキストの再描画
-		this.gl.flush();
+    	//Cameraの位置計算( 1:Cameraの位置, 2:Cameraの方向, 3:??? )
+    	m.lookAt( [0.0, 0, 3.0], [0, 0, 0], [0, 1, 0], vMatrix );
+
+    	//Perspectiveの計算( 1:角度, 2:比率, 3:near, 4:far )
+    	m.perspective( 90, this.canvas.width / this.canvas.height, 0.1, 100, pMatrix );
+
+    	// 各行列を掛け合わせ座標変換行列を完成させる
+    	m.multiply( pMatrix, vMatrix, mvpMatrix );
+    	m.multiply( mvpMatrix, mMatrix, mvpMatrix );
+
+
+    	//各ポリゴンを描画
+		var polygon;
+		var l = this._polygons.length;
+		for( var i = 0; i < l; i++ ) {
+
+			polygon = this._polygons[i];
+			polygon.draw( this.gl, this.program, mvpMatrix );
+
+		}
+
+
+
+    	//コンテキストの再描画
+    	this.gl.flush();
 
 	}
 
@@ -237,11 +243,16 @@ WebGL.prototype = {
 //---------------------------------------------------
 //	▼ Point3d ▼
 //---------------------------------------------------
-var Point3d = function( i_x, i_y, i_z ) {
+var Point3d = function( i_x, i_y, i_z, i_red, i_green, i_blue, i_alpha ) {
 
 	this.x = i_x || 0.0;
 	this.y = i_y || 0.0;
 	this.z = i_z || 0.0;
+
+	this.red = i_red || 0.0;
+	this.green = i_green || 0.0;
+	this.blue = i_blue || 0.0;
+	this.alpha = i_alpha || 0.0;
 
 	this._init.apply( this );
 
@@ -253,55 +264,27 @@ Point3d.prototype = {
 	//------------------------------------------------
 	_init : function() {
 
+
+
+
 	}
 }
 //---------------------------------------------------
 //	▲ Point3d ▲
 //---------------------------------------------------
 
-//---------------------------------------------------
-//	▼ vertexColor ▼
-//---------------------------------------------------
-var vertexColor = function( i_c1, i_c2, i_c3 ) {
-
-	this.c1 = i_c1 || 0.0;
-	this.c2 = i_c2 || 0.0;
-	this.c3 = i_c3 || 0.0;
-
-	this._init.apply( this );
-
-}
-vertexColor.prototype = {
-
-	//------------------------------------------------
-	//	init
-	//------------------------------------------------
-	_init : function() {
-
-	}
-}
-//---------------------------------------------------
-//	▲ vertexColor ▲
-//---------------------------------------------------
-
 
 //---------------------------------------------------
 //	▼ Polygon ▼
 //---------------------------------------------------
-var Polygon = function( i_point1, i_point2, i_point3, i_color1, i_color2, i_color3 ) {
+var Polygon = function( i_point1, i_point2, i_point3 ) {
 
 	this.x = 0;
 	this.y = 0;
 	this.z = 0;
-	this.c1 = 0;
-	this.c2 = 0;
-	this.c3 = 0;
 	this.point1 = i_point1 || new Point3d();
 	this.point2 = i_point2 || new Point3d();
 	this.point3 = i_point3 || new Point3d();
-	this.color1 = i_color1 || new vertexColor();
-	this.color2 = i_color2 || new vertexColor();
-	this.color3 = i_color3 || new vertexColor();
 
 	this._init.apply( this );
 
@@ -316,18 +299,104 @@ Polygon.prototype = {
 	},
 
 	//------------------------------------------------
-	//	get
+	//	draw
 	//------------------------------------------------
-	get : function() {
+	draw : function( i_gl, i_program, i_matrix ) {
+
+		//ポリゴン情報作成
+		var polygons = this.getVertex();
+		//色情報
+		var colors = this.getColor();
+
+		//bufferを作成し、頂点情報を格納する
+		var vertexVbo = i_gl.createBuffer();
+		//bufferをバインド
+		i_gl.bindBuffer( i_gl.ARRAY_BUFFER, vertexVbo );
+		//bufferにデータをセット
+		i_gl.bufferData( i_gl.ARRAY_BUFFER, new Float32Array( polygons ), i_gl.STATIC_DRAW );
+		//bufferのバインドを無効化
+		i_gl.bindBuffer( i_gl.ARRAY_BUFFER, null );
+
+
+		//bufferを作成し、色情報を格納する
+		var colorVbo = i_gl.createBuffer();
+		//bufferをバインド
+		i_gl.bindBuffer( i_gl.ARRAY_BUFFER, colorVbo );
+		//bufferにデータをセット
+		i_gl.bufferData( i_gl.ARRAY_BUFFER, new Float32Array( colors ), i_gl.STATIC_DRAW );
+		//bufferのバインドを無効化
+		i_gl.bindBuffer( i_gl.ARRAY_BUFFER, null );
+
+
+
+
+
+		//作成したbufferを、頂点シェーダーのattribute変数に渡す
+		i_gl.bindBuffer( i_gl.ARRAY_BUFFER, vertexVbo );
+		//attribute属性の変数positionを取得
+		var positionLocation = i_gl.getAttribLocation( i_program, "position" );
+		//positionの要素数
+		var positionStride = 3;
+		//attribute属性を有効にする
+		i_gl.enableVertexAttribArray( positionLocation );
+		//attribute属性を登録
+		i_gl.vertexAttribPointer( positionLocation, positionStride, i_gl.FLOAT, false, 0, 0 );
+
+
+
+		//作成したbufferを、頂点シェーダーのattribute変数に渡す
+		i_gl.bindBuffer( i_gl.ARRAY_BUFFER, colorVbo );
+		//attribute属性の変数colorを取得
+		var colorLocation = i_gl.getAttribLocation( i_program, "color" );
+		//colorの要素数
+		var colorStride = 4;
+		//attribute属性を有効にする
+		i_gl.enableVertexAttribArray( colorLocation );
+		//attribute属性を登録
+		i_gl.vertexAttribPointer( colorLocation, colorStride, i_gl.FLOAT, false, 0, 0 );
+
+
+
+    	//uniformLocationの取得
+    	var uniLocation = i_gl.getUniformLocation( i_program, "mvpMatrix" );
+    	//uniformLocationへ座標変換行列を登録
+    	i_gl.uniformMatrix4fv( uniLocation, false, i_matrix );
+    	//モデルの描画
+    	i_gl.drawArrays( i_gl.TRIANGLES, 0, 3 );
+
+
+	},
+
+	//------------------------------------------------
+	//	get vertex
+	//------------------------------------------------
+	getVertex : function() {
 
 		var verteies = [];
-		verteies.push( this.point1.x, this.point1.y, this.point1.z );
-		verteies.push( this.point2.x, this.point2.y, this.point2.z );
-		verteies.push( this.point3.x, this.point3.y, this.point3.z );
+
+		verteies.push( this.x + this.point1.x, this.y + this.point1.y, this.z + this.point1.z );
+		verteies.push( this.x + this.point2.x, this.y + this.point2.y, this.z + this.point2.z );
+		verteies.push( this.x + this.point3.x, this.y + this.point3.y, this.z + this.point3.z );
 
 		return verteies;
 
+	},
+
+	//------------------------------------------------
+	//	get color
+	//------------------------------------------------
+	getColor : function() {
+
+		var colors = [];
+
+		colors.push( this.point1.red, this.point1.green, this.point1.blue, this.point1.alpha );
+		colors.push( this.point2.red, this.point2.green, this.point2.blue, this.point2.alpha );
+		colors.push( this.point3.red, this.point3.green, this.point3.blue, this.point3.alpha );
+
+		return colors;
+
 	}
+
 }
 //---------------------------------------------------
 //	▲ Polygon ▲
