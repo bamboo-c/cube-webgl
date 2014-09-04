@@ -27,9 +27,7 @@ var Main = {
 		canvas.width = 500;
 		canvas.height = 300;
 
-
 		Main.webGl = new WebGL( canvas );
-
 
 		//vertex shaderの作成
 		var vScript = document.getElementById( "vs" );
@@ -50,7 +48,6 @@ var Main = {
 		//ポリゴンを追加
 		Main.webGl.add( polygon );
 
-
 		//ポリゴン作成
 		point1 = new Point3d( 0.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0 );
 		point2 = new Point3d( 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0 );
@@ -61,10 +58,7 @@ var Main = {
 		//ポリゴンを追加
 		Main.webGl.add( polygon );
 
-
 		Main.webGl.update();
-
-
 
 	}
 
@@ -193,43 +187,40 @@ WebGL.prototype = {
 	//------------------------------------------------
 	update : function() {
 
-
 		var m = new matIV();
 
-
-
 		//Cameraの計算
-    	var mMatrix = m.identity( m.create() );
-    	var vMatrix = m.identity( m.create() );
-    	var pMatrix = m.identity( m.create() );
-    	var mvpMatrix = m.identity( m.create() );
+		var mMatrix = m.identity( m.create() );
+		var vMatrix = m.identity( m.create() );
+		var pMatrix = m.identity( m.create() );
+		var tmpMatrix = m.identity(m.create());
+		var mvpMatrix = m.identity( m.create() );
 
 
-    	//Cameraの位置計算( 1:Cameraの位置, 2:Cameraの方向, 3:??? )
-    	m.lookAt( [0.0, 0, 3.0], [0, 0, 0], [0, 1, 0], vMatrix );
+		//Cameraの位置計算( 1:Cameraの位置, 2:Cameraの方向, 3:??? )
+		m.lookAt( [0.0, 0, 3.0], [0, 0, 0], [0, 1, 0], vMatrix );
 
-    	//Perspectiveの計算( 1:角度, 2:比率, 3:near, 4:far )
-    	m.perspective( 90, this.canvas.width / this.canvas.height, 0.1, 100, pMatrix );
+		//Perspectiveの計算( 1:角度, 2:比率, 3:near, 4:far )
+		m.perspective( 90, this.canvas.width / this.canvas.height, 0.1, 100, pMatrix );
 
-    	// 各行列を掛け合わせ座標変換行列を完成させる
-    	m.multiply( pMatrix, vMatrix, mvpMatrix );
-    	m.multiply( mvpMatrix, mMatrix, mvpMatrix );
+		// 各行列を掛け合わせ座標変換行列を完成させる
+		m.multiply( pMatrix, vMatrix, mvpMatrix );
+		m.multiply( mvpMatrix, mMatrix, mvpMatrix );
 
+		//各ポリゴンを描画
 
-    	//各ポリゴンを描画
 		var polygon;
 		var l = this._polygons.length;
 		for( var i = 0; i < l; i++ ) {
 
 			polygon = this._polygons[i];
-			polygon.draw( this.gl, this.program, mvpMatrix );
+			polygon.draw( this.gl, this.program, mvpMatrix, m, tmpMatrix, mMatrix );
 
 		}
 
+		//コンテキストの再描画
+		this.gl.flush();
 
-
-    	//コンテキストの再描画
-    	this.gl.flush();
 
 	}
 
@@ -301,7 +292,7 @@ Polygon.prototype = {
 	//------------------------------------------------
 	//	draw
 	//------------------------------------------------
-	draw : function( i_gl, i_program, i_matrix ) {
+	draw : function( i_gl, i_program, i_matrix, i_m, i_tmp, i_mx ) {
 
 		//ポリゴン情報作成
 		var polygons = this.getVertex();
@@ -357,12 +348,56 @@ Polygon.prototype = {
 
 
 
-    	//uniformLocationの取得
-    	var uniLocation = i_gl.getUniformLocation( i_program, "mvpMatrix" );
-    	//uniformLocationへ座標変換行列を登録
-    	i_gl.uniformMatrix4fv( uniLocation, false, i_matrix );
-    	//モデルの描画
-    	i_gl.drawArrays( i_gl.TRIANGLES, 0, 3 );
+		//uniformLocationの取得
+		var uniLocation = i_gl.getUniformLocation( i_program, "mvpMatrix" );
+		//uniformLocationへ座標変換行列を登録
+		i_gl.uniformMatrix4fv( uniLocation, false, i_matrix );
+		//モデルの描画
+		i_gl.drawArrays( i_gl.TRIANGLES, 0, 3 );
+
+		// カウント数
+		var count = 0;
+
+		(function(){
+
+			count++;
+
+			var rad = (count % 360) * Math.PI / 180;
+			var x = Math.cos(rad);
+			var y = Math.sin(rad);
+
+			i_m.identity(i_mx);
+			i_m.translate(i_mx, [x, y + 1.0, 0.0], i_mx);
+
+
+			i_m.multiply(i_tmp, i_mx, i_matrix);
+			i_gl.uniformMatrix4fv(uniLocation, false, i_matrix);
+			i_gl.drawArrays(i_gl.TRIANGLES, 0, 3);
+
+
+			i_m.identity(i_mx);
+			i_m.translate(i_mx, [1.0, -1.0, 0.0], i_mx);
+			i_m.rotate(i_mx, rad, [0, 1, 0], i_mx);
+
+
+			i_m.multiply(i_tmp, i_mx, i_matrix);
+			i_gl.uniformMatrix4fv(uniLocation, false, i_matrix);
+			i_gl.drawArrays(i_gl.TRIANGLES, 0, 3);
+
+
+			var s = Math.sin(rad) + 1.0;
+			i_m.identity(i_mx);
+			i_m.translate(i_mx, [-1.0, -1.0, 0.0], i_mx);
+			i_m.scale(i_mx, [s, s, 0.0], i_mx)
+
+
+			i_m.multiply(i_tmp, i_mx, i_matrix);
+			i_gl.uniformMatrix4fv(uniLocation, false, i_matrix);
+			i_gl.drawArrays(i_gl.TRIANGLES, 0, 3);
+
+			setTimeout(arguments.callee, 1000 / 30);
+
+		})();
 
 
 	},
@@ -404,3 +439,5 @@ Polygon.prototype = {
 
 
 Main.init();
+
+
